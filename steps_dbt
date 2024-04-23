@@ -1,0 +1,236 @@
+
+--steps for dbt
+
+1. create a new repo in GIT
+2. create dbt folder and clone the specific repo in local
+3. install dbt --pip install dbt
+4. initialize dbt folder by using dbt init foldername
+dbt debug --config-dir
+5. find profile.yml file and modify the contents
+6. created profile that would connect specific dbt project to with connection details from snowflake account.
+
+7. open leran-dbt in the navigator
+8. open dbt_projsct.yml under tests and do necessary changes to point to profile name of profiles.yml
+9. debug dbt
+dbt debug --config-dir -- to find out the profiles.yml
+
+profiles.yml - includes the snowflake database, user account ,pwd, datawarehouse, database, schema etc.,
+
+$ dbt debug
+Running with dbt=0.18.2
+dbt version: 0.18.2
+python version: 3.6.4
+python path: c:\users\maddy\appdata\local\programs\python\python36-32\python.exe
+os info: Windows-10-10.0.19041-SP0
+Using profiles.yml file at C:\Users\maddy\.dbt\profiles.yml
+Using dbt_project.yml file at C:\Users\maddy\Documents\learn_dbt\learn-dbt-maddy\learn-dbt\dbt_project.yml
+
+Configuration:
+  profiles.yml file [OK found and valid]
+  dbt_project.yml file [OK found and valid]
+
+Required dependencies:
+ - git [OK found]
+
+Connection:
+  account: zz53814.ap-southeast-2
+  user: TRANSFORM_USER
+  database: analytics
+  schema: dbt
+  warehouse: TRANSFORM_WH
+  role: TRANSFORM_ROLE
+  client_session_keep_alive: False
+
+in snow flake /worksheets:
+
+GRANT USAGE ON warehouse Transform_wh TO ROLE transform_role;
+drop schema analytics.dbt;
+grant create schema on database analytics to role transform_role;
+grant usage on all schemas in database analytics to role transform_role;
+grant usage on future schemas in database analytics to role transform_role;
+grant select on all tables in database analytics to role transform_role;
+grant select on future tables in database analytics to role transform_role;
+grant select on all views in database analytics to role transform_role;
+grant select on future views in database analytics to role transform_role;
+
+select * from analytics.dbt.my_first_dbt_model limit 100;
+
+in DBT initialized folder:
+
+models- represent the ddls and transformation logic that can executed on DB
+models - schema.yml -> we can declare the object names and also define tests
+tests -> dbt_project.yml -> is required to debug - dbt debug to check if the connections are working fine with warehouse.
+
+
+
+select
+cust.c_custkey,
+cust.c_name,
+cust.c_nationkey,
+sum(ord.o_totalprice) as total_purchase_amount
+from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER cust
+left join SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.ORDERS ord
+on ord.o_custkey = cust.c_custkey
+group by
+c_custkey,
+c_name,
+c_nationkey
+limit 100;
+
+additional parameters to supply to below :
+
+
+{{ config(materialized='table',alias='first_model',schema='maddy_test',database='analytics_test') }}
+
+create database analytics_test;
+
+grant all on database analytics_test to transform_role;
+
+drop database analytics_test
+
+
+setting variables in DBT project:
+
+select *, {{ var('my_first_variable')}} as first_variable
+from source_data
+where id >= {{ var('my_third_variable')}}
+
+
+testing:
+
+$ dbt test
+Running with dbt=0.18.2
+[WARNING]: Test 'test.maddy_learn_dbt.unique_customer_order_total_purchase_amount_c_custkey' (models\example\schema.yml) depends on a node named 'customer_order_total_purchase_amount' which was not found
+[WARNING]: Test 'test.maddy_learn_dbt.not_null_customer_order_total_purchase_amount_c_custkey' (models\example\schema.yml) depends on a node named 'customer_order_total_purchase_amount' which was not found
+Found 7 models, 6 tests, 0 snapshots, 0 analyses, 143 macros, 0 operations, 0 seed files, 0 sources
+
+20:09:57 | Concurrency: 1 threads (target='dev')
+20:09:57 |
+20:09:57 | 1 of 6 START test not_null_cumulative_order_sales_o_orderdate........ [RUN]
+20:09:59 | 1 of 6 PASS not_null_cumulative_order_sales_o_orderdate.............. [PASS in 1.81s]
+20:09:59 | 2 of 6 START test not_null_my_first_dbt_model_id..................... [RUN]
+20:10:00 | 2 of 6 FAIL 1 not_null_my_first_dbt_model_id......................... [FAIL 1 in 1.09s]
+20:10:00 | 3 of 6 START test not_null_my_second_dbt_model_id.................... [RUN]
+20:10:01 | 3 of 6 PASS not_null_my_second_dbt_model_id.......................... [PASS in 1.35s]
+20:10:01 | 4 of 6 START test unique_cumulative_order_sales_o_orderdate.......... [RUN]
+20:10:02 | 4 of 6 PASS unique_cumulative_order_sales_o_orderdate................ [PASS in 1.11s]
+20:10:02 | 5 of 6 START test unique_my_first_dbt_model_id....................... [RUN]
+20:10:03 | 5 of 6 PASS unique_my_first_dbt_model_id............................. [PASS in 1.28s]
+20:10:03 | 6 of 6 START test unique_my_second_dbt_model_id...................... [RUN]
+20:10:04 | 6 of 6 PASS unique_my_second_dbt_model_id............................ [PASS in 1.00s]
+20:10:04 |
+20:10:04 | Finished running 6 tests in 8.77s.
+
+Completed with 1 error and 0 warnings:
+
+Failure in test not_null_my_first_dbt_model_id (models\example\schema.yml)
+  Got 1 result, expected 0.
+
+  compiled SQL at target\compiled\maddy_learn_dbt\models\example\schema.yml\schema_test\not_null_my_first_dbt_model_id.sql
+
+Done. PASS=5 WARN=0 ERROR=1 SKIP=0 TOTAL=6
+
+
+you can fix the above dbt test to pass by updating the model .sql logic to filter null values and then rerun dbt run and implement model after chnages
+and then run the dbt test.
+
+we can test only certain values which would be called as accepted values:
+
+models:
+    - name: my_first_dbt_model
+      description: "A starter dbt model"
+      columns:
+          - name: id
+            description: "The primary key for this table"
+            tests:
+                - unique
+                - not_null
+                - accepted_values:
+                   values: [1,2] -- null will be filtered out
+                   quote: false
+
+  In the above case it only is ready to test with records with 1 and 2 numerics.
+
+
+  $ dbt test
+Running with dbt=0.18.2
+[WARNING]: Test 'test.maddy_learn_dbt.unique_customer_order_total_purchase_amount_c_custkey' (models\example\schema.yml) depends on a node named 'customer_order_total_purchase_amount' which was not found
+[WARNING]: Test 'test.maddy_learn_dbt.not_null_customer_order_total_purchase_amount_c_custkey' (models\example\schema.yml) depends on a node named 'customer_order_total_purchase_amount' which was not found
+Found 7 models, 7 tests, 0 snapshots, 0 analyses, 143 macros, 0 operations, 0 seed files, 0 sources
+
+20:25:46 | Concurrency: 1 threads (target='dev')
+20:25:46 |
+20:25:46 | 1 of 7 START test accepted_values_my_first_dbt_model_id__False__1__2. [RUN] --passed
+20:25:47 | 1 of 7 PASS accepted_values_my_first_dbt_model_id__False__1__2....... [PASS in 1.34s]
+20:25:47 | 2 of 7 START test not_null_cumulative_order_sales_o_orderdate........ [RUN]
+20:25:48 | 2 of 7 PASS not_null_cumulative_order_sales_o_orderdate.............. [PASS in 1.10s]
+20:25:48 | 3 of 7 START test not_null_my_first_dbt_model_id..................... [RUN]
+20:25:49 | 3 of 7 PASS not_null_my_first_dbt_model_id........................... [PASS in 1.02s]
+20:25:49 | 4 of 7 START test not_null_my_second_dbt_model_id.................... [RUN]
+20:25:51 | 4 of 7 PASS not_null_my_second_dbt_model_id.......................... [PASS in 1.50s]
+20:25:51 | 5 of 7 START test unique_cumulative_order_sales_o_orderdate.......... [RUN]
+20:25:52 | 5 of 7 PASS unique_cumulative_order_sales_o_orderdate................ [PASS in 1.11s]
+20:25:52 | 6 of 7 START test unique_my_first_dbt_model_id....................... [RUN]
+20:25:53 | 6 of 7 PASS unique_my_first_dbt_model_id............................. [PASS in 1.03s]
+20:25:53 | 7 of 7 START test unique_my_second_dbt_model_id...................... [RUN]
+20:25:54 | 7 of 7 PASS unique_my_second_dbt_model_id............................ [PASS in 1.04s]
+20:25:54 |
+20:25:54 | Finished running 7 tests in 9.18s.
+
+
+
+relationships: you can add this attribute in the schema.yml and mention the id field or key field that links between the tables.
+primary key foreign key relationships.
+
+added additionals values in second model that do not exist in first model and since we declared the relationships under tests under schema.yml,
+the tests failed as per logs below.
+
+maddy@DESKTOP-VDIM63S MINGW64 ~/Documents/learn_dbt/learn-dbt-maddy/learn-dbt (main)
+$ dbt test
+Running with dbt=0.18.2
+[WARNING]: Test 'test.maddy_learn_dbt.unique_customer_order_total_purchase_amount_c_custkey' (models\example\schema.yml) depends on a node named 'customer_order_total_purchase_amount' which was not found
+[WARNING]: Test 'test.maddy_learn_dbt.not_null_customer_order_total_purchase_amount_c_custkey' (models\example\schema.yml) depends on a node named 'customer_order_total_purchase_amount' which was not found
+Found 7 models, 8 tests, 0 snapshots, 0 analyses, 143 macros, 0 operations, 0 seed files, 0 sources
+
+07:18:04 | Concurrency: 1 threads (target='dev')
+07:18:04 |
+07:18:04 | 1 of 8 START test accepted_values_my_first_dbt_model_id__False__1__2__3 [RUN]
+07:18:07 | 1 of 8 PASS accepted_values_my_first_dbt_model_id__False__1__2__3.... [PASS in 2.14s]
+07:18:07 | 2 of 8 START test not_null_cumulative_order_sales_o_orderdate........ [RUN]
+07:18:08 | 2 of 8 PASS not_null_cumulative_order_sales_o_orderdate.............. [PASS in 1.09s]
+07:18:08 | 3 of 8 START test not_null_my_first_dbt_model_id..................... [RUN]
+07:18:09 | 3 of 8 PASS not_null_my_first_dbt_model_id........................... [PASS in 1.18s]
+07:18:09 | 4 of 8 START test not_null_my_second_dbt_model_id.................... [RUN]
+07:18:10 | 4 of 8 PASS not_null_my_second_dbt_model_id.......................... [PASS in 1.05s]
+07:18:10 | 5 of 8 START test relationships_my_second_dbt_model_id__id__ref_my_first_dbt_model_ [RUN]
+07:18:11 | 5 of 8 FAIL 1 relationships_my_second_dbt_model_id__id__ref_my_first_dbt_model_ [FAIL 1 in 1.36s]
+07:18:11 | 6 of 8 START test unique_cumulative_order_sales_o_orderdate.......... [RUN]
+07:18:12 | 6 of 8 PASS unique_cumulative_order_sales_o_orderdate................ [PASS in 1.16s]
+07:18:12 | 7 of 8 START test unique_my_first_dbt_model_id....................... [RUN]
+07:18:14 | 7 of 8 PASS unique_my_first_dbt_model_id............................. [PASS in 1.09s]
+07:18:14 | 8 of 8 START test unique_my_second_dbt_model_id...................... [RUN]
+07:18:15 | 8 of 8 PASS unique_my_second_dbt_model_id............................ [PASS in 1.62s]
+07:18:15 |
+07:18:15 | Finished running 8 tests in 11.76s.
+
+Completed with 1 error and 0 warnings:
+
+Failure in test relationships_my_second_dbt_model_id__id__ref_my_first_dbt_model_ (models\example\schema.yml)
+  Got 1 result, expected 0.
+
+
+  custom tests:
+
+  create test file and if the condition meets then the test case will fail and and error is thrown.
+
+how to run specific model only
+
+dbt run --models example.model_name
+
+dbt run --models example
+
+dbt run --models model only
+
+can run multiple models like below
+
+dbt run --models example.model1  example.model2 etc..,

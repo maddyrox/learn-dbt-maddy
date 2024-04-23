@@ -1,0 +1,66 @@
+
+version: 2
+
+models:
+    - name: my_first_dbt_model
+      description: "A starter dbt model"
+      columns:
+          - name: id
+            description: "The primary key for this table"
+            tests:
+                - unique
+                - not_null
+                - accepted_values:
+                   values: [1,2,3]
+                   quote: false
+
+    - name: my_second_dbt_model
+      description: "A starter dbt model"
+      columns:
+          - name: id
+            description: "The primary key for this table"
+            tests:
+                - unique
+                - not_null
+                - relationships:
+                   to: ref('my_first_dbt_model')
+                   field: id
+    - name: customer_order_total_purchase_amount
+      description: "customer total orders"
+      columns:
+          - name: c_custkey
+            description: "The primary key for this table"
+            tests:
+                - unique
+                - not_null
+    - name: cumulative_order_sales
+      description: "cumulative sales per order date"
+      columns:
+          - name: o_orderdate
+            description: "The primary key for this table"
+            tests:
+                - unique
+                - not_null
+    - name: dates_incremental_loads
+      description: " incremental loads"
+      columns:
+          - name: d_date
+            description: "primary key for this table"
+    - name: incremental_time_loads
+      description: " incremental loads"
+      columns:
+          - name: t_time
+            description: "primary key for this table"
+    - name: playing_with_tests
+      description: "just created for tests"
+      columns:
+          - name: c_custkey
+            description: "primary key for this table"
+            tests:
+                - unique
+                - not_null
+          - name: c_mktsegment
+            description: "segment type"
+            tests:
+                - accepted_values:
+                   values: ["BUILDING","AUTOMOBILE","MACHINERY","HOUSEHOLD","FURNITURE"]
