@@ -1,0 +1,104 @@
+GRANT USAGE ON warehouse Transform_wh TO ROLE transform_role;
+
+with cte_sales_per_date
+as
+(
+select  o_orderdate,
+sum(o_totalprice) as sum_sales_per_date
+from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.ORDERS
+group by o_orderdate
+order by o_orderdate --limit 1000
+)
+
+select
+o_orderdate,
+sum_sales_per_date,
+sum(sum_sales_per_date) over (order by o_orderdate asc)
+from cte_sales_per_date
+
+
+/*select
+o_orderdate,
+lag(o_orderdate,1,cast('1900-01-01' as date)) over (order by o_orderdate asc) as prev_o_orderdate,
+case when lag(o_orderdate,1,cast('1900-01-01' as date)) over (order by o_orderdate asc)  is not null and lag(o_orderdate,1,cast('1900-01-01' as date)) over (order by o_orderdate asc) !=cast('1900-01-01' as date)  then
+          lag(sum_sales_per_date,1,0) over (order by o_orderdate asc) + sum_sales_per_date
+     else sum_sales_per_date
+end as cumulative_sum_sales_per_date,
+sum_sales_per_date
+from cte_sales_per_date;
+;*/
+
+lag
+
+select * from ANALYTICS.DBT.CUMULATIVE_ORDER_SALES
+
+/* incremental loads*/
+
+{{ config(materialized='incremental',unique_key = 'd_date') }}
+
+select * from
+SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.DATE_DIM
+where d_date <= current_date
+
+{% if is_incremental() %}
+  and d_date > (select max(d_date) from {{ this }})
+{% endif %}
+
+
+select * from analytics.dbt.dates_incremental_loads order by d_date desc
+
+
+
+{{ config(materialized='incremental',unique_key = 't_time') }}
+
+select * from  ANALYTICS.DBT.INCREMENTAL_TIME_LOADS order by t_time desc;
+
+select * from
+SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.time_DIM
+where to_time(concat(t_hour::varchar,':',t_minute,':',t_second)) <= current_time
+
+{% if is_incremental() %}
+  and to_time(concat(t_hour::varchar,':',t_minute,':',t_second)) > (select max(to_time(concat(t_hour::varchar,':',t_minute,':',t_second)) <= current_time) from {{ this }})
+{% endif %}
+
+select * from ANALYTICS.DBT.INCREMENTAL_TIME_LOADS
+
+
+select * from
+SNOWFLAKE_SAMPLE_DATA.TPCDS_SF10TCL.time_DIM
+where to_time(concat(t_hour::varchar,':',t_minute,':',t_second)) <= current_time
+
+select max(to_time(concat(t_hour::varchar,':',t_minute,':',t_second)))  from
+ANALYTICS.DBT.INCREMENTAL_TIME_LOADS
+
+select * from
+
+create database analytics_test;
+
+grant all on database analytics_test to transform_role;
+
+drop database analytics_test
+
+drop table ANALYTICS.DBT.FIRST_MODEL;
+
+select * from ANALYTICS.DBT.FIRST_MODEL;
+
+select * from ANALYTICS.DBT.MY_SECOND_DBT_MODEL
+
+select sum(case when id =1 then 1 else 0 end )/count(*) as total_nulls
+from ANALYTICS.DBT.FIRST_MODEL
+having sum(case when id =1 then 1 else 0 end )/count(*) <= .1
+
+select count(*) from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER --150000
+
+select count(distinct c_custkey) from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER --150000
+
+select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER
+where c_custkey is null
+
+select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER
+where c_mktsegment not in ('BUILDING','AUTOMOBILE','MACHINERY','HOUSEHOLD','FURNITURE') -- no rows
+
+select * from ANALYTICS.DBT.PLAYING_WITH_TESTS
+
+select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER
